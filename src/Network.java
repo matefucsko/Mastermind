@@ -1,15 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
-
-import java.awt.Point;
-
-/**
- *
- * @author Predi
- */
 abstract class Network {
 
 	protected Control ctrl;

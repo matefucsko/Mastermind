@@ -71,6 +71,7 @@ import javax.swing.UIManager;
 
 public class GUI extends JFrame {
 	private Control ctrl;
+	private Command C;
 	private final int DotColumns_rel[] = {110, 145, 181, 215};
 	private final int DotRows_rel[] = {89, 129, 170, 210, 250, 291, 333, 374, 413, 453, 493, 533, 573, 613, 653, 693, 733, 774, 813, 853};
 	private final int StickColumns_rel[] = {53, 71};
@@ -83,7 +84,7 @@ public class GUI extends JFrame {
 	private final int StickHeight = 15;
 	private final int StickWidth = 15;	
 	private final int GUI_Height_Blank = 71;
-	private final int GUI_Height_Menu = 378;
+	private final int GUI_Height_Menu = 337;
 	
 	public enum COLOR {
 		RED, GREEN, DARKBLUE, ORANGE, YELLOW,  PURPLE, LIGHTBLUE, BLACK, WHITE, GRAY
@@ -93,15 +94,13 @@ public class GUI extends JFrame {
 		DOTS, COLORS, ACCEPT
 	}
 	
-	private COLOR[][] Dots = new COLOR[DotColumns_rel.length][DotRows_rel.length];
-	private COLOR[][] Sticks = new COLOR[StickColumns_rel.length][StickRows_rel.length];
+	private GameState gs;
+	//private COLOR[][] gs.Dots = new COLOR[DotColumns_rel.length][DotRows_rel.length];
+	//private COLOR[][] gs.Sticks = new COLOR[StickColumns_rel.length][StickRows_rel.length];
 	private ArrayList<Component> TableObjects = new ArrayList<Component>();
 	private ArrayList<Component> ColorChoosers = new ArrayList<Component>();
 	private ArrayList<JCheckBox> LineAccepters = new ArrayList<JCheckBox>();
-	
-	public boolean RepeatableColors = false;
-	public int NumColors = 6;
-	
+		
 	private JPanel contentPane;
 	private JPanel pnlMain;
 	private JPanel pnlSettings;
@@ -115,7 +114,7 @@ public class GUI extends JFrame {
 		JLabel Brd = new JLabel("");
 		Brd.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) 
+			public void mousePressed(MouseEvent arg0) 
 			{
 				int x = arg0.getX();
 				int y = arg0.getY();
@@ -129,7 +128,11 @@ public class GUI extends JFrame {
 							if(x > DotColumns_rel[column] && x < (DotColumns_rel[column] + DotWidth))
 							{
 								//Interface function
-								ctrl.UserClick_Dots(column, line); 
+								//ctrl.UserClick_gs.Dots(column, line); 
+								C.column=column;
+								C.line=line;
+								C.lastPressedButton="Dot";
+								ctrl.onCommand(C);
 							}
 						}
 					}
@@ -155,14 +158,14 @@ public class GUI extends JFrame {
 		}
 		TableObjects.clear();
 		
-		for(int line = 0; line < DotRows_rel.length; line++)
+		for(int line = 0; line < gs.tryMax; line++)
 		{
-			for(int column = 0; column < DotColumns_rel.length; column++)
+			for(int column = 0; column < 4; column++)
 			{
-				if(getDots()[column][line] != null)
+				if(gs.Dots[column][line] != null)
 				{
 					JLabel point = new JLabel("");
-					point.setIcon(new ImageIcon(GUI.class.getResource("/Images/" + getDots()[column][line].name() + ".png")));
+					point.setIcon(new ImageIcon(GUI.class.getResource("/Images/" + gs.Dots[column][line].name() + ".png")));
 					point.setBounds(Brd.getX() + DotColumns_rel[column], Brd.getY() + DotRows_rel[line], DotHeight, DotWidth);
 					TableObjects.add(point);
 					pnlGame.add(point, 0);
@@ -170,14 +173,14 @@ public class GUI extends JFrame {
 			}
 		}
 		
-		for(int line = 0; line < StickRows_rel.length; line++)
+		for(int line = 0; line < gs.tryMax*2; line++)
 		{
 			for(int column = 0; column < StickColumns_rel.length; column++)
 			{
-				if(Sticks[column][line] != null)
+				if(gs.Sticks[column][line] != null)
 				{
 					JLabel point = new JLabel("");
-					point.setIcon(new ImageIcon(GUI.class.getResource("Images/STICK_" + Sticks[column][line].name() + ".png")));
+					point.setIcon(new ImageIcon(GUI.class.getResource("Images/STICK_" + gs.Sticks[column][line].name() + ".png")));
 					point.setBounds(Brd.getX() + StickColumns_rel[column], Brd.getY() + StickRows_rel[line], StickHeight, StickWidth);
 					TableObjects.add(point);
 					pnlGame.add(point, 0);
@@ -189,7 +192,7 @@ public class GUI extends JFrame {
 		pnlGame.repaint();
 	}
 	
-	public void StartGame(int param_NumRows)
+	public void StartGame(int param_NumRows, int param_NumColors)
 	{
 		if(Board != null)
 		{
@@ -201,7 +204,7 @@ public class GUI extends JFrame {
 		for (int i = 0; i < ColorChoosers.size(); i++) {
 			pnlGame.remove(ColorChoosers.get(i));
 		}
-		for (int i = 0; i < NumColors; i++) {
+		for (int i = 0; i < param_NumColors; i++) {
 			pnlGame.add(ColorChoosers.get(i));
 		}
 		
@@ -220,70 +223,46 @@ public class GUI extends JFrame {
 		pnlGame.setVisible(true);
 	}
 	
-	public void AddDot(int line, int column, COLOR color)
+	public void onNewGameState(GameState gs){
+		//TODO
+		this.gs.copyGameState(gs);;
+		switch (gs.LastChanged){
+			case "Board":
+				RemakeTable(Board);
+				break;
+			case "Exit":	
+				BackToMain();
+				break;
+			case "Settings":
+				break;
+			default:
+				System.out.println("WTF??");
+		}
+	}
+	
+/*	public void AddDot(int line, int column, COLOR color)
 	{
-		getDots()[column][line] = color;
+		gs.Dots[column][line] = color;
 		RemakeTable(Board);
 	}
 	public void RemoveDot(int line, int column)
 	{
-		getDots()[column][line] = null;
+		gs.Dots[column][line] = null;
 		RemakeTable(Board);
 	}
 	
 	public void AddStick(int line, int column, COLOR color)
 	{
-		Sticks[column][line] = color;
+		gs.Sticks[column][line] = color;
 		RemakeTable(Board);
 	}
 	
 	public void RemoveStick(int line, int column)
 	{
-		Sticks[column][line] = null;
+		gs.Sticks[column][line] = null;
 		RemakeTable(Board);
 	}
-	
-/*	public void GameOver(boolean Win, GUI.COLOR[] colors)
-	{
-		for(int i = 0; i < 4; i++)
-		{
-			JLabel point = new JLabel("");
-			point.setIcon(new ImageIcon(GUI.class.getResource("/Images/" + colors[i].name() + ".png")));
-			point.setBounds(Board.getX() + DotColumns_rel[i], Board.getY() + 30, DotHeight, DotWidth);
-			TableObjects.add(point);
-			pnlGame.add(point, 0);
-		}
-		
-		if(Win)
-		{
-			String message="Congratulations, you won!\n Number of tries: "+ ctrl.ActualRow +"\n Time: 00:00";
-			JOptionPane.showMessageDialog(this, message);
-		}
-		else
-		{
-			String message="Game over!\nTime: 00:00";
-			JOptionPane.showMessageDialog(this, message);
-		}
-		pnlGame.setVisible(false);
-		pnlMain.setVisible(true);
-		setBounds(getX(), getY(), getWidth(), GUI_Height_Menu);
-		
-		for(int line = 0; line < DotRows_rel.length; line++)
-		{
-			for(int column = 0; column < DotColumns_rel.length; column++)
-			{
-				RemoveDot(line, column);
-			}
-		}
-		for(int line = 0; line < StickRows_rel.length; line++)
-		{
-			for(int column = 0; column < StickColumns_rel.length; column++)
-			{
-				RemoveStick(line, column);
-			}
-		}
-	}
-	*/
+*/
 	public void RevealProblem(GUI.COLOR[] colors)
 	{
 		for(int i = 0; i < 4; i++)
@@ -295,29 +274,19 @@ public class GUI extends JFrame {
 			pnlGame.add(point, 0);
 		}
 	}
+	public String getName(String message){
+		String Name = JOptionPane.showInputDialog(getParent(),
+	            message, "");
+		return Name;
+	}
+
 	public void MessageAfterGame(String message){	
 		JOptionPane.showMessageDialog(this, message);
 	}
-
-	public void CleanUpGame(){
+	public void BackToMain(){
 		pnlGame.setVisible(false);
 		pnlMain.setVisible(true);
 		setBounds(getX(), getY(), getWidth(), GUI_Height_Menu);
-		
-		for(int line = 0; line < DotRows_rel.length; line++)
-		{
-			for(int column = 0; column < DotColumns_rel.length; column++)
-			{
-				RemoveDot(line, column);
-			}
-		}
-		for(int line = 0; line < StickRows_rel.length; line++)
-		{
-			for(int column = 0; column < StickColumns_rel.length; column++)
-			{
-				RemoveStick(line, column);
-			}
-		}
 	}
 	public void SetActiveLineAccepter(int param_index)
 	{
@@ -341,14 +310,23 @@ public class GUI extends JFrame {
 		}
 	}
 	
+	public void ListHighScores(String HighScores)
+	{
+		JOptionPane.showMessageDialog(this, HighScores, "Toplista", JOptionPane.INFORMATION_MESSAGE);
+		
+	}
+	
 	/* ********************************************************************************************************
 	 * **************************************Create the frame.*************************************************
 	 * *******************************************************************************************************/
 	public GUI(Control c) {
 		ctrl = c;
+		C=new Command();
+		gs=new GameState();
+		
+		setFont(new Font("Dialog", Font.PLAIN, 12));
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 30, 465, 619);
-		//setBounds(100, 30, 465, GUI_Height_Menu);
+		setBounds(100, 30, 465, GUI_Height_Menu);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
@@ -362,14 +340,13 @@ public class GUI extends JFrame {
 		JButton btn1Player = new JButton("Egy j\u00E1t\u00E9kos");
 		btn1Player.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				//Dummy Functionality:
-				StartGame(2 * (NumColors));
-				
-				/*Interface function: void StartGame(boolean param_2Players, int param_NumColors, boolean param_RepeatableColors);*/
-				ctrl.Start1Player(NumColors, RepeatableColors);
+
+				//Interface function: 
+				C.lastPressedButton="Start1P";
+				ctrl.onCommand(C);
 			}
 		});
-		btn1Player.setBounds(164, 65, 104, 46);
+		btn1Player.setBounds(77, 121, 104, 46);
 		btn1Player.setAlignmentX(Component.CENTER_ALIGNMENT);
 		
 		/* btn2Player */
@@ -391,31 +368,21 @@ public class GUI extends JFrame {
 				
 				if(NewGame != 0)
 				{/* Connect to Host */
-					String IP = JOptionPane.showInputDialog(getParent(),
-                        "Please type in the host IP address!", "0.0.0.0");
-					
-					//Dummy Functionality:
-					//StartGame(2 * (NumColors));
-					
-					/* Interface function */
-					ctrl.Start2Player(IP);
+					C.IP = JOptionPane.showInputDialog(getParent(),
+                        "Please type in the host IP address!", "localhost");
+					C.server=false;
 				}
 				else
-				{/* Create game */
-					
-					//Dummy Functionality:
-					//StartGame(2 * (NumColors));
-					
-					/* Interface function */
-					ctrl.Start2Player(NumColors, RepeatableColors);
-				}
+					C.server=true;
+				C.lastPressedButton="Start2P";
+				ctrl.onCommand(C);
 			}
 		});
-		btn2Player.setBounds(164, 133, 104, 46);
+		btn2Player.setBounds(258, 121, 104, 46);
 		
 		/* btnSettings */
 		JButton btnSettings = new JButton("Be\u00E1ll\u00EDt\u00E1sok");
-		btnSettings.setBounds(164, 204, 104, 46);
+		btnSettings.setBounds(77, 202, 104, 46);
 		pnlMain.setLayout(null);
 		pnlMain.add(btn1Player);
 		pnlMain.add(btn2Player);
@@ -426,6 +393,65 @@ public class GUI extends JFrame {
 				pnlMain.setVisible(false);
 			}
 		});
+		
+		JButton btnHighScore = new JButton("Toplista");
+		btnHighScore.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				//Dummy functionality
+				/*String HighScores = 
+						   "<html>"
+						 + "	<table>"
+						 + "		<tr> "
+						 + "			<th>Helyezés</th>"
+						 + "			<th>Név</b></th>"
+						 + "			<th>Idõ</b></th>"
+						 + "		</tr>"
+						 + "		<tr>"
+						 + "			<th style=\"font-weight: normal;\">1.</th>"
+						 + "			<th style=\"font-weight: normal;\">Józsi1</th>"
+						 + "			<th style=\"font-weight: normal;\">6:31</th>"
+						 + "		</tr>"
+						 + "		<tr>"
+						 + "			<th style=\"font-weight: normal;\">2.</th>"
+						 + "			<th style=\"font-weight: normal;\">Józsi2</th>"
+						 + "			<th style=\"font-weight: normal;\">6:32</th>"
+						 + "		</tr>"
+						 + "		<tr>"
+						 + "			<th style=\"font-weight: normal;\">3.</th>"
+						 + "			<th style=\"font-weight: normal;\">Józsi3</th>"
+						 + "			<th style=\"font-weight: normal;\">6:33</th>"
+						 + "		</tr>"
+						 + "		<tr>"
+						 + "			<th style=\"font-weight: normal;\">4.</th>"
+						 + "			<th style=\"font-weight: normal;\">Józsi4</th>"
+						 + "			<th style=\"font-weight: normal;\">6:34</th>"
+						 + "		</tr>"
+						 + "		<tr>"
+						 + "			<th style=\"font-weight: normal;\">5.</th>"
+						 + "			<th style=\"font-weight: normal;\">Józsi5</th>"
+						 + "			<th style=\"font-weight: normal;\">6:35</th>"
+						 + "		</tr>"
+						 + "	</table>"
+						 + "</html>"
+				;*/
+				//ListHighScores(HighScores);
+				C.lastPressedButton="Highscores";
+				ctrl.onCommand(C);
+				//Interface function
+				//ctr.getHighScores();
+			}
+		});
+		btnHighScore.setBounds(258, 202, 104, 46);
+		pnlMain.add(btnHighScore);
+		
+		JTextPane txtpnTitle = new JTextPane();
+		txtpnTitle.setFont(new Font("Tahoma", Font.BOLD, 30));
+		txtpnTitle.setText("Mastermind j\u00E1t\u00E9k");
+		txtpnTitle.setBounds(80, 34, 278, 46);
+		txtpnTitle.setBackground(getBackground());
+		pnlMain.add(txtpnTitle);
+
+
 		
 		/* *************Settings panel*****************/
 		pnlSettings = new JPanel();
@@ -466,8 +492,10 @@ public class GUI extends JFrame {
 		btnOk.setBounds(230, 260, 89, 23);
 		btnOk.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				NumColors = Slider_NumColors.getValue();
-				RepeatableColors = chckbx_RepeatableColors.isSelected();
+				C.colourNum = Slider_NumColors.getValue();
+				C.colourRepeat = chckbx_RepeatableColors.isSelected();
+				C.lastPressedButton = "Settings_OK";
+				ctrl.onCommand(C);
 				pnlSettings.setVisible(false);
 				pnlMain.setVisible(true);
 			}
@@ -479,8 +507,8 @@ public class GUI extends JFrame {
 		btnCancel.setBounds(131, 260, 89, 23);
 		btnCancel.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				Slider_NumColors.setValue(NumColors);
-				chckbx_RepeatableColors.setSelected(RepeatableColors);
+				Slider_NumColors.setValue(gs.numColors);
+				chckbx_RepeatableColors.setSelected(gs.colourRepeat);
 				pnlSettings.setVisible(false);
 				pnlMain.setVisible(true);
 			}
@@ -492,34 +520,14 @@ public class GUI extends JFrame {
 		contentPane.add(pnlGame, "name_151990897037164");
 		
 		/* btnExit */
-		
 		JButton btnExit = new JButton("Exit");
 		btnExit.setBounds(356, 18, 62, 45);
 		btnExit.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				pnlGame.setVisible(false);
-				pnlMain.setVisible(true);
-				setBounds(getX(), getY(), getWidth(), GUI_Height_Menu);
-				
-				for(int line = 0; line < DotRows_rel.length; line++)
-				{
-					for(int column = 0; column < DotColumns_rel.length; column++)
-					{
-						RemoveDot(line, column);
-					}
-				}
-				for(int line = 0; line < StickRows_rel.length; line++)
-				{
-					for(int column = 0; column < StickColumns_rel.length; column++)
-					{
-						RemoveStick(line, column);
-					}
-				}
-				
-				
+
 				//Interface function:
-				ctrl.ExitGame(); 
-				
+				C.lastPressedButton="Exit";
+				ctrl.onCommand(C);			
 			}
 		});
 		pnlGame.add(btnExit);
@@ -537,12 +545,8 @@ public class GUI extends JFrame {
 					SetActiveLineAccepter(index + 1);
 					
 					/*Interface Function*/
-					try {
-						ctrl.UserClick_LineAccepter(index);
-					} catch (IOException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}
+					C.lastPressedButton = "LineAccepter";
+					ctrl.onCommand(C);
 				}
 			});
 			LineAccepters.add(chckbxNewCheckBox);
@@ -554,9 +558,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserRED = new JLabel("");
 		ColorChooserRED.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.RED);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.RED;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserRED.setIcon(new ImageIcon(GUI.class.getResource("/Images/RED.png")));
@@ -566,9 +572,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserGREEN = new JLabel("");
 		ColorChooserGREEN.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.GREEN);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.GREEN;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserGREEN.setIcon(new ImageIcon(GUI.class.getResource("/Images/GREEN.png")));
@@ -578,9 +586,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserDARKBLUE = new JLabel("");
 		ColorChooserDARKBLUE.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.DARKBLUE);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.DARKBLUE;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserDARKBLUE.setIcon(new ImageIcon(GUI.class.getResource("/Images/DARKBLUE.png")));
@@ -591,9 +601,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserORANGE = new JLabel("");
 		ColorChooserORANGE.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.ORANGE);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.ORANGE;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserORANGE.setIcon(new ImageIcon(GUI.class.getResource("/Images/ORANGE.png")));
@@ -603,9 +615,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserYELLOW = new JLabel("");
 		ColorChooserYELLOW.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.YELLOW);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.YELLOW;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserYELLOW.setIcon(new ImageIcon(GUI.class.getResource("/Images/YELLOW.png")));
@@ -615,9 +629,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserPURPLE = new JLabel("");
 		ColorChooserPURPLE.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.PURPLE);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.PURPLE;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserPURPLE.setIcon(new ImageIcon(GUI.class.getResource("/Images/PURPLE.png")));
@@ -627,9 +643,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserLIGHTBLUE = new JLabel("");
 		ColorChooserLIGHTBLUE.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.LIGHTBLUE);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.LIGHTBLUE;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserLIGHTBLUE.setIcon(new ImageIcon(GUI.class.getResource("/Images/LIGHTBLUE.png")));
@@ -639,9 +657,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserBLACK = new JLabel("");
 		ColorChooserBLACK.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.BLACK);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.BLACK;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserBLACK.setIcon(new ImageIcon(GUI.class.getResource("/Images/BLACK.png")));
@@ -651,9 +671,11 @@ public class GUI extends JFrame {
 		JLabel ColorChooserWHITE = new JLabel("");
 		ColorChooserWHITE.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.WHITE);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.WHITE;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserWHITE.setIcon(new ImageIcon(GUI.class.getResource("/Images/WHITE.png")));
@@ -663,22 +685,16 @@ public class GUI extends JFrame {
 		JLabel ColorChooserGRAY = new JLabel("");
 		ColorChooserGRAY.addMouseListener(new MouseAdapter() {
 			@Override
-			public void mouseClicked(MouseEvent arg0) {
+			public void mousePressed(MouseEvent arg0) {
 				//Interface Function
-				ctrl.UserClick_ColorChooser(GUI.COLOR.GRAY);
+				C.lastPressedButton="ColorChooser";
+				C.pickedColour=GUI.COLOR.GRAY;
+				ctrl.onCommand(C);
 			}
 		});
 		ColorChooserGRAY.setIcon(new ImageIcon(GUI.class.getResource("/Images/GRAY.png")));
 		ColorChooserGRAY.setBounds(PosY_ColorChoosers, 429, 25, 25);
 		ColorChoosers.add(ColorChooserGRAY);
 				
-	}
-
-	public COLOR[][] getDots() {
-		return Dots;
-	}
-
-	public void setDots(COLOR[][] dots) {
-		Dots = dots;
 	}
 }
