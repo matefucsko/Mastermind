@@ -10,6 +10,7 @@ public class GameState implements Serializable{
 	public int numColors;
 	public String LastChanged; //=="Exit", "Board", "Settings", ...
 	public boolean colourRepeat;
+	public String Message;
 	GameState(){
 		Dots = new GUI.COLOR[4][10];
 		Sticks = new GUI.COLOR[2][20];
@@ -40,5 +41,6 @@ public class GameState implements Serializable{
 		this.LastChanged = other.LastChanged;
 		this.numColors=other.numColors;
 		this.colourRepeat=other.colourRepeat;
+		this.Message=other.Message;
 	}
 }

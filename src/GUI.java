@@ -235,6 +235,26 @@ public class GUI extends JFrame {
 				break;
 			case "Settings":
 				break;
+			case "Highscores":
+				ListHighScores(gs.Message);
+				break;
+			case "Start":
+				StartGame(gs.tryMax, gs.numColors);
+				RemakeTable(Board);
+				break;
+			case "Reveal":
+				COLOR[] colors = new COLOR[4];
+				for(int i=0; i<4; i++){
+					colors[i]=(COLOR) COLOR.values()[gs.problem[i]];
+				}
+				RevealProblem(colors);
+				break;	
+			case "Message":
+				MessageAfterGame(gs.Message);
+				break;	
+			case "GetName":
+				C.Name=getName(gs.Message);
+				break;	
 			default:
 				System.out.println("WTF??");
 		}

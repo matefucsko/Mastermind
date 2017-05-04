@@ -10,6 +10,7 @@ public class Command implements Serializable{
 	public boolean colourRepeat;		//lastPressedButton=="Settings_OK"
 	public String IP;					//lastPressedButton=="Start2P"
 	public boolean server;				//lastPressedButton=="Start2P"
+	public String Name;
 	Command(){
 		dirtyBit=false;
 		lastPressedButton=null;
