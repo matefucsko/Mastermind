@@ -16,14 +16,15 @@ public class Control {
 	private GameState gs;
 	private GUI gui;
 	private Network net = null;
-	private int[] problem;
 	private boolean SinglePlayer;
 	private int OtherPlayerScore;
 	public boolean MyScoreSent;
 	private long StartTime;
 	private Command cmd;
 
-
+	/*50ms-enként lefut. 
+	 * A GUI-tól kapott utolsó utasítás (cmd.lastPressedButton) alapján dönti el, hogy mit kell csinálnia.
+	 * Ha a GUI-tól nem kapott új feladatot, a dirtyBit false értékû, a szál visszamegy alvó állapotba.*/
 	public class GameControlThread implements Runnable {
 
 		public void run() {
@@ -42,7 +43,6 @@ public class Control {
 							System.out.printf("Colours: %d\tRepeatable:%b\n", colourNum, colourRepeat);
 							break;
 						case "Start1P":
-							gs.tryMax = colourNum * 2 - 2;
 							System.out.printf("Start1P\n");
 							Start1Player();
 							break;
@@ -78,7 +78,9 @@ public class Control {
 							break;
 						case "Highscores":
 							System.out.printf("Highscores\n");
-							gui.ListHighScores(HighScore2HTML());
+							gs.Message=HighScore2HTML();
+							gs.LastChanged="Highscores";
+							gui.onNewGameState(gs);
 							break;	
 						case "Exit":
 							System.out.printf("Exit Game\n");
@@ -95,7 +97,7 @@ public class Control {
 					// TODO
 					else
 						//System.out.printf(".");
-					Thread.sleep(200);
+					Thread.sleep(50);
 				}
 			} catch (Exception ex) {
 				System.out.println(ex.getMessage());
@@ -108,7 +110,7 @@ public class Control {
 	/***********************
 	 * Interface functions *
 	 **********************/
-
+	
 	public void onCommand(Command C) {
 		cmd = C;
 		cmd.dirtyBit = true;
@@ -117,29 +119,30 @@ public class Control {
 	/********************
 	 * Game functions   *
 	 *******************/
-
+	//Egyjátékos menet indítása
 	public void Start1Player() {
 		SinglePlayer = true;
-		problem = generateProblem(colourNum, colourRepeat);
-		gui.StartGame(gs.tryMax, colourNum);
+		gs.problem = generateProblem(colourNum, colourRepeat);
+		gs.tryMax = colourNum * 2 - 2;		
 		gs.ActualRow = 0;
+		gs.LastChanged="Start";
 		// TESZTELESRE
 		System.out.printf("A feladat:\t");
 		for (int i = 0; i < 4; i++)
-			System.out.printf("%s\t", GUI.COLOR.values()[problem[i]]);
+			System.out.printf("%s\t", GUI.COLOR.values()[gs.problem[i]]);
 		System.out.println();
-		gs.problem=problem;
-		StartTime = System.currentTimeMillis();
+		StartTime = System.currentTimeMillis();		
+		gui.onNewGameState(gs);
 	}
-
+	//2játékos indítása kliensként
 	public void Start2Player(String IP) {
 		SinglePlayer = false;
 		MyScoreSent = false;
-		OtherPlayerScore = 42;
+		OtherPlayerScore = 42;//Ennyi próbálkozás nem lehet, így ha ennél kevesebbre változik az értéke, az jelzi, hogy a másik játékos már végzett.
 		gs.ActualRow = 0;
 		StartClient(IP);
 	}
-
+	//2játékos indítása szerverként
 	public void Start2Player() {
 		SinglePlayer = false;
 		MyScoreSent = false;
@@ -147,7 +150,12 @@ public class Control {
 		OtherPlayerScore = 42;
 		StartServer();
 	}
-
+	/*Ha a játékos a sort el akarja fogadtatni, a mellette lévõ checkboxra kattint. Ekkor hívódik meg ez a függvény.
+	 *Az aktuális sor színeit int-té konvertálja, meghívaja az EvaluateTry() kiértékelõ függvényt. 
+	 *Ha a játékos nyert, vagy kifutott a sorokból, szól a gui-nak, hogy 
+	 *	1) Mutassa meg a feladott kombinációt, amit ki kellett találni
+	 *	2) Írjon ki gratuláló/game over üzenetet + játékstatisztikát egy új ablakban.
+	 *Egyjátékos gyõzelem esetén meghívja a CompareToHighScores() függvényt, lsd. késõbb */
 	public void UserClick_LineAccepter() throws IOException {
 		int[] dots = new int[4];
 		for (int i = 0; i < 4; i++) {
@@ -156,46 +164,54 @@ public class Control {
 			else
 				dots[i] = gs.Dots[i][gs.ActualRow].ordinal();
 		}
-		boolean win = EvaluateTry(colourNum, problem, dots);
+		boolean win = EvaluateTry(colourNum, gs.problem, dots);
 		gs.ActualRow++;
+		gs.LastChanged="Board";
 		gui.onNewGameState(gs);
 		GUI.COLOR[] colors = new GUI.COLOR[4];
 		for (int i = 0; i < 4; i++)
-			colors[i] = GUI.COLOR.values()[problem[i]];
+			colors[i] = GUI.COLOR.values()[gs.problem[i]];
 		if (SinglePlayer) {
 			if (win) {
-				gui.RevealProblem(colors);
+				gs.LastChanged="Reveal";
+				gui.onNewGameState(gs);
 				long estimatedTime = System.currentTimeMillis() - StartTime;
 				CompareToHighScores(estimatedTime);
 				CleanUpGame();
 			}
 			if (gs.ActualRow == gs.tryMax) {
-				gui.RevealProblem(colors);
+				gs.LastChanged="Reveal";
+				gui.onNewGameState(gs);
 				long estimatedTime = System.currentTimeMillis() - StartTime;
 				int min = (int) estimatedTime / 60000;
 				int sec = (int) (estimatedTime / 1000) % 60;
-				gui.MessageAfterGame("Winner! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n");
+				gs.Message="Game Over! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+				gs.LastChanged="Message";		
+				gui.onNewGameState(gs);	
 				CleanUpGame();
 			}
 		} else {
 			if (win) {
 				SendScore();
-				gui.RevealProblem(colors);
+				gs.LastChanged="Reveal";
+				gui.onNewGameState(gs);
 				long estimatedTime = System.currentTimeMillis() - StartTime;
 				int min = (int) estimatedTime / 60000;
 				int sec = (int) (estimatedTime / 1000) % 60;
 				if (OtherPlayerScore != 42) { // Megvan a masik jatekos
 												// eredmenye
 					if (gs.ActualRow < OtherPlayerScore)
-						gui.MessageAfterGame(
-								"Winner! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n");
+						gs.Message=	"Winner! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
 					else
-						gui.MessageAfterGame(
-								"You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n");
+						gs.Message= "You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+					gs.LastChanged="Message";	
+					gui.onNewGameState(gs);	
 				}
 				// WAIT FOR OTHER PLAYER
 				else {
-					gui.MessageAfterGame("Waiting for the other player...");
+					gs.Message="Waiting for the other player...";
+					gs.LastChanged="Message";	
+					gui.onNewGameState(gs);	
 					for (int i = 30; i > 0 && OtherPlayerScore == 42; i--) {
 
 						try {
@@ -205,27 +221,29 @@ public class Control {
 						}
 					}
 					if (gs.ActualRow <= OtherPlayerScore)
-						gui.MessageAfterGame(
-								"Winner! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n");
+						gs.Message="Winner! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
 					else
-						gui.MessageAfterGame(
-								"You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n");
+						gs.Message="You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+					gs.LastChanged="Message";	
+					gui.onNewGameState(gs);	
 				}
 				CleanUpGame();
 				net.disconnect();
 			} else if (gs.ActualRow == gs.tryMax) {
 				SendScore();
-				gui.RevealProblem(colors);
+				gs.LastChanged="Reveal";
+				gui.onNewGameState(gs);
 				long estimatedTime = System.currentTimeMillis() - StartTime;
 				int min = (int) estimatedTime / 60000;
 				int sec = (int) (estimatedTime / 1000) % 60;
-				gui.MessageAfterGame(
-						"You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n");
+				gs.Message="You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+				gs.LastChanged="Message";	
+				gui.onNewGameState(gs);	
 				CleanUpGame();
 			}
 		}
 	}
-
+	/*4 random egész számot ad vissza 0 és <colourNum> között. Megadható, hogy legyen-e ismétlés <colourRepeat> értékével.*/
 	public int[] generateProblem(int colourNum, boolean colourRepeat) {
 		int[] dots = new int[4];
 		for (int i = 0; i < 4; i++) {
@@ -243,7 +261,7 @@ public class Control {
 		}
 		return dots;
 	}
-
+	/*Kiértékeli a sort. gs-ben beállítja a fekete-fehér értékelõ pöckök értékét. Ha helyes volt a tipp és a játékos nyert, true-val tér vissza */
 	public boolean EvaluateTry(int colourNum, int[] problem, int[] proba) {
 		int black = 0;
 		int white = 0;
@@ -301,6 +319,7 @@ public class Control {
 		}
 		return win;
 	}
+	/*Kiolvassa az adott beállításokhoz tartozó highscore fájlt, majd formázva beletölti egy stringbe, amivel visszatér.*/
 	private String HighScore2HTML() throws IOException{
 		String content;
 		if(colourRepeat) content = new String(Files.readAllBytes(Paths.get("highscore"+colourNum+"r.txt")));
@@ -338,8 +357,14 @@ public class Control {
 		highscore=highscore+"</table></html>";
 		return highscore;
 	}
+	/*Kiolvassa az adott beállításokhoz tartozó highscore fájlt, összehasonlítja vele az aktuális eredményt.
+	 * A gs.Message-ben beállítja az üzenetet, amit a GUI-nak ki kell írnia, attól függõen, hogy bekerült-e a top10-be a játékos. 
+	 * Ha igen, a GUI-nak "GetName"-t ad meg feladatként, mire az bekéri a játékos nevét, az adott üzenettel. 
+	 * (Különben csak a gratulációt és a statisztikát jeleníti meg a gui egy felugró ablakban. Ez a szöveg is gs.Message-ben adódik át.)
+	 * Ha megvan a név, meghívja az insertScore függvényt, ami elhelyezi az adott játékos nevét és statisztikáit a megfelelõ helyen a highscore adatokat tartalmazó stringben.
+	 * Végül ezt a stringet visszaírja a highscore fájlba.*/
 	private void CompareToHighScores(long myTime) throws IOException {
-		//makeHighScoreFiles();
+		//makeHighScoreFiles(); //Ha sérültek, vagy nincsenek meg a highscore fájlok, újragenerálja õket
 		String content;
 		String filename;
 		if(colourRepeat) filename ="highscore"+colourNum+"r.txt";
@@ -365,22 +390,32 @@ public class Control {
 																										// ido
 				place = i;
 		}
+		int min = (int) myTime / 60000;
+		int sec = (int) (myTime / 1000) % 60;
 		if (place < 10) { // Felkerult a toplistara
-			int min = (int) myTime / 60000;
-			int sec = (int) (myTime / 1000) % 60;
-			String Name = gui.getName("<html><center>Congratulations!</center></html>"
+			gs.Message="<html><center>Congratulations!</center></html>"
 					+ "\n You made it to the top 10!\n"
 					+ "Number of tries:\t"	+ (gs.ActualRow)
 					+ "\nTime:\t" + min + ":" + sec + "\n"
-					+ "Type in your name to save your result!");
-			String highscores = insertScore(Name, myTime, lines, place);
+					+ "Type in your name to save your result!";
+			gs.LastChanged="GetName";
+			gui.onNewGameState(gs);
+			cmd.dirtyBit=false;
+			String highscores = insertScore(cmd.Name, myTime, lines, place);
 			try (Writer writer = new BufferedWriter(
 					new OutputStreamWriter(new FileOutputStream(filename), "utf-8"))) {
 				writer.write(highscores);
 			}
 		}
+		else{//Nem kerult fel
+			gs.Message="<html><center>Nyertél!</center></html>"
+					+ "Próbálkozások száma:\t"	+ (gs.ActualRow)
+					+ "\nJátékidõ:\t" + min + ":" + sec + "\n";
+			gs.LastChanged="Message";
+			gui.onNewGameState(gs);
+		}
 	}
-
+	/*A nevet, játékidõt és próbálkozásszámot beszúrja egy a highscore fájloknak megfelelõ formátumú stringbe, a helyezésnek megfelelõen.*/
 	private String insertScore(String name, long myTime, String[] lines, int place) {
 		String[] newlines = new String[10];
 		for (int i = 0; i < place; i++) {
@@ -396,7 +431,12 @@ public class Control {
 		}
 		return highscore;
 	}
-
+	/*Ha nincsenek, vagy sérültek a highscore fájlok, ez újragenerálja õket.
+	 * Formátum: 
+	 * highscore<színek száma><r, ha van ismétlés>.txt
+	 * 
+	 * Minden sor:
+	 * <név>@<próbálkozások száma>@<játékidõ[ms]>#*/
 	private void makeHighScoreFiles() throws UnsupportedEncodingException, FileNotFoundException, IOException{
 		String highscores="";
 		for(int i=0; i<10; i++){
@@ -413,7 +453,7 @@ public class Control {
 			}
 		}
 	}
-	
+	/*Az összes színes pöcköt kiszedi a játéktérbõl*/
 	public void CleanUpGame(){
 		for(int line = 0; line < gs.tryMax; line++){
 			for(int col=0; col<=3; col++){
@@ -428,65 +468,68 @@ public class Control {
 		gs.LastChanged="Exit";
 		gui.onNewGameState(gs);
 	}
-
+	/*Új szervert indít*/
 	void StartServer() {
 		if (net != null)
 			net.disconnect();
 		net = new SerialServer(this);
 		net.connect("localhost");
 	}
-
+	/*Kliensként csatlakozik egy szerverhez IP cím alapján*/
 	void StartClient(String IP) {
 		if (net != null)
 			net.disconnect();
 		net = new SerialClient(this);
 		net.connect(IP);
 	}
-
+	/*5 tagú int tömbként elküldi a kliensnek a feladatot(színek helyett számok), illetve a színek maximális számát*/
 	void SendProblem() {
 		if (net == null)
 			return;
 		int[] pack = new int[5];
 		for (int i = 0; i < 4; i++)
-			pack[i] = problem[i];
+			pack[i] = gs.problem[i];
 		pack[4] = colourNum;
 		net.send(pack);
 	}
-
+	//Ha megérkezett a feladat a szervertõl, elmenti gs-be, majd szól a gui-nak, hogy frissült a gamestate és az indíthatja a játékot
 	void ReceivedProblem(int[] pack) {
 		for (int i = 0; i < 4; i++)
-			problem[i] = pack[i];
+			gs.problem[i] = pack[i];
 		colourNum = pack[4];
-		gs.tryMax = colourNum * 2 - 2;
 		// TESZTELESRE
 		System.out.printf("A feladat:\t");
 		for (int i = 0; i < 4; i++)
-			System.out.printf("%s\t", GUI.COLOR.values()[problem[i]]);
+			System.out.printf("%s\t", GUI.COLOR.values()[gs.problem[i]]);
 		System.out.println();
-
+		gs.tryMax = colourNum * 2 - 2;		
 		gs.numColors = colourNum;
-		gui.StartGame(gs.tryMax, colourNum);
+		gs.LastChanged="Start";
+		gui.onNewGameState(gs);
 		StartTime = System.currentTimeMillis();
 	}
-
+	//Ha csatlakozozz a kliens, a szerver generál egy feladatot, amit elküld a kliensnek. Frissíti a saját gamestate-jét, majd szól a gui-nak, hogy indíthatja a játékot
 	void ClientConnected() {
-		problem = generateProblem(colourNum, colourRepeat);
+		gs.problem = generateProblem(colourNum, colourRepeat);
+		gs.tryMax = colourNum * 2 - 2;		
+		gs.numColors = colourNum;
+		gs.LastChanged="Start";
 		SendProblem();
 		// TESZTELESRE
 		System.out.printf("A feladat:\t");
 		for (int i = 0; i < 4; i++)
-			System.out.printf("%s\t", GUI.COLOR.values()[problem[i]]);
+			System.out.printf("%s\t", GUI.COLOR.values()[gs.problem[i]]);
 		System.out.println();
-
-		gui.StartGame(gs.tryMax, colourNum);
+		gui.onNewGameState(gs);
 		StartTime = System.currentTimeMillis();
 	}
-
+	//Ha a kliens vagy a szerver megkapta a másik játékos eredményét (próbálkozások számát), elmenti azt.
 	void ReceivedScore(int[] pack) {
 		System.out.println("Recieved the other player's score. Waiting for you...");
 		OtherPlayerScore = pack[0];
 	}
-
+	/*Elküldi a próbálkozások számát egy int tömbben (késõbbi bõvítésre), majd MyScoreSent-el jelzi, hogy õ már végzett. 
+	 * Ha a másik játékostól késõbb jön eredmény és az nem kevesebb próbálkozás, akkor az nyer, aki hamarabb küldte.*/	
 	void SendScore() {
 		System.out.println("Sending score");
 		int[] pack = new int[5];// Kesobb bovitheto pl idovel
@@ -509,7 +552,6 @@ public class Control {
 		colourNum = 6;
 		colourRepeat = false;
 		gs = new GameState();		
-		problem = new int[4];
 		cmd = new Command();
 		Thread LogicThread = new Thread(new GameControlThread());
 		LogicThread.start();
