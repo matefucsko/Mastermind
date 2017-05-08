@@ -12,8 +12,8 @@ public class GameState implements Serializable{
 	public boolean colourRepeat;
 	public String Message;
 	GameState(){
-		Dots = new GUI.COLOR[4][10];
-		Sticks = new GUI.COLOR[2][20];
+		Dots = new GUI.COLOR[4][20];
+		Sticks = new GUI.COLOR[2][40];
 		problem = new int[4];
 		numColors = 6;
 		tryMax = 10;

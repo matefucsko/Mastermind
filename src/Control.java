@@ -18,6 +18,7 @@ public class Control {
 	private Network net = null;
 	private boolean SinglePlayer;
 	private int OtherPlayerScore;
+	private long OtherPlayerTime;
 	public boolean MyScoreSent;
 	private long StartTime;
 	private Command cmd;
@@ -52,7 +53,7 @@ public class Control {
 								System.out.printf("Start 2P Game - Server \n");
 								Start2Player();
 							} else {
-								System.out.printf("Start 2P Game - Server \n");
+								System.out.printf("Start 2P Game - Client \n");
 								Start2Player(cmd.IP);
 							}
 							break;
@@ -83,7 +84,6 @@ public class Control {
 							gui.onNewGameState(gs);
 							break;	
 						case "Exit":
-							System.out.printf("Exit Game\n");
 							CleanUpGame();
 							System.out.printf("Exit Game\n");
 							break;
@@ -179,13 +179,13 @@ public class Control {
 				CompareToHighScores(estimatedTime);
 				CleanUpGame();
 			}
-			if (gs.ActualRow == gs.tryMax) {
+			else if (gs.ActualRow == gs.tryMax) {
 				gs.LastChanged="Reveal";
 				gui.onNewGameState(gs);
 				long estimatedTime = System.currentTimeMillis() - StartTime;
 				int min = (int) estimatedTime / 60000;
 				int sec = (int) (estimatedTime / 1000) % 60;
-				gs.Message="Game Over! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+				gs.Message="Vesztettél! \n Próbálkozásaid száma: " + gs.ActualRow + "\n Játékidõ: " + min + ":" + sec + "\n";
 				gs.LastChanged="Message";		
 				gui.onNewGameState(gs);	
 				CleanUpGame();
@@ -200,19 +200,23 @@ public class Control {
 				int sec = (int) (estimatedTime / 1000) % 60;
 				if (OtherPlayerScore != 42) { // Megvan a masik jatekos
 												// eredmenye
+					int min2 = (int) OtherPlayerTime / 60000;
+					int sec2 = (int) (OtherPlayerTime / 1000) % 60;
 					if (gs.ActualRow < OtherPlayerScore)
-						gs.Message=	"Winner! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+						gs.Message=	"Gyõztél! \nEredményed:                              " + gs.ActualRow + " próbálkozás, " + min + ":" + sec + "\n"
+								+"A másik játékos eredménye: "+OtherPlayerScore+" próbálkozás, "+min2+":"+sec2+"     \n";
 					else
-						gs.Message= "You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+						gs.Message= "Vesztettél! \nEredményed:                              " + gs.ActualRow + " próbálkozás, " + min + ":" + sec + "\n"
+								+"A másik játékos eredménye: "+OtherPlayerScore+" próbálkozás, "+min2+":"+sec2+"     \n";
 					gs.LastChanged="Message";	
 					gui.onNewGameState(gs);	
 				}
 				// WAIT FOR OTHER PLAYER
 				else {
-					gs.Message="Waiting for the other player...";
+					gs.Message="Várakozás a másik játékosra";
 					gs.LastChanged="Message";	
 					gui.onNewGameState(gs);	
-					for (int i = 30; i > 0 && OtherPlayerScore == 42; i--) {
+					for (int i = 30; i > 0 && OtherPlayerScore == 42; i--) { //Max 30 s várakozás
 
 						try {
 							Thread.sleep(1000);
@@ -220,10 +224,18 @@ public class Control {
 							e.printStackTrace();
 						}
 					}
-					if (gs.ActualRow <= OtherPlayerScore)
-						gs.Message="Winner! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
-					else
-						gs.Message="You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+					int min2 = (int) OtherPlayerTime / 60000;
+					int sec2 = (int) (OtherPlayerTime / 1000) % 60;
+					if(OtherPlayerScore==42)
+						gs.Message="Gyõztél! \n A másik játékosnak lejárt az ideje.\n Próbálkozásaid száma: " + gs.ActualRow + "\n Játékidõ: " + min + ":" + sec + "\n";
+					else{
+						if (gs.ActualRow <= OtherPlayerScore)
+							gs.Message=	"Gyõztél! \nEredményed:                              " + gs.ActualRow + " próbálkozás, " + min + ":" + sec + "\n"
+									+"A másik játékos eredménye: "+OtherPlayerScore+" próbálkozás, "+min2+":"+sec2+"     \n";
+						else
+							gs.Message= "Vesztettél! \nEredményed:                              " + gs.ActualRow + " próbálkozás, " + min + ":" + sec + "\n"
+									+"A másik játékos eredménye: "+OtherPlayerScore+" próbálkozás, "+min2+":"+sec2+"     \n";
+					}
 					gs.LastChanged="Message";	
 					gui.onNewGameState(gs);	
 				}
@@ -236,7 +248,7 @@ public class Control {
 				long estimatedTime = System.currentTimeMillis() - StartTime;
 				int min = (int) estimatedTime / 60000;
 				int sec = (int) (estimatedTime / 1000) % 60;
-				gs.Message="You lost! \n Number of tries: " + gs.ActualRow + "\n Time: " + min + ":" + sec + "\n";
+				gs.Message="Vesztettél! \n Próbálkozásaid száma: " + gs.ActualRow + "\n Játékidõ: " + min + ":" + sec + "\n";
 				gs.LastChanged="Message";	
 				gui.onNewGameState(gs);	
 				CleanUpGame();
@@ -393,11 +405,11 @@ public class Control {
 		int min = (int) myTime / 60000;
 		int sec = (int) (myTime / 1000) % 60;
 		if (place < 10) { // Felkerult a toplistara
-			gs.Message="<html><center>Congratulations!</center></html>"
-					+ "\n You made it to the top 10!\n"
-					+ "Number of tries:\t"	+ (gs.ActualRow)
-					+ "\nTime:\t" + min + ":" + sec + "\n"
-					+ "Type in your name to save your result!";
+			gs.Message="<html><center>Gratulálunk!</center></html>"
+					+ "\n Bekerültél a legjobb 10 közé!\n"
+					+ "Próbálkozások száma:\t"	+ (gs.ActualRow)
+					+ "\nJátékidõ:\t" + min + ":" + sec + "\n"
+					+ "Add meg a neved!";
 			gs.LastChanged="GetName";
 			gui.onNewGameState(gs);
 			cmd.dirtyBit=false;
@@ -527,6 +539,7 @@ public class Control {
 	void ReceivedScore(int[] pack) {
 		System.out.println("Recieved the other player's score. Waiting for you...");
 		OtherPlayerScore = pack[0];
+		OtherPlayerTime = System.currentTimeMillis() - StartTime;
 	}
 	/*Elküldi a próbálkozások számát egy int tömbben (késõbbi bõvítésre), majd MyScoreSent-el jelzi, hogy õ már végzett. 
 	 * Ha a másik játékostól késõbb jön eredmény és az nem kevesebb próbálkozás, akkor az nyer, aki hamarabb küldte.*/	
