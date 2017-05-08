@@ -202,7 +202,10 @@ public class Control {
 												// eredmenye
 					int min2 = (int) OtherPlayerTime / 60000;
 					int sec2 = (int) (OtherPlayerTime / 1000) % 60;
-					if (gs.ActualRow < OtherPlayerScore)
+					if(estimatedTime>OtherPlayerTime+30000)
+						gs.Message= "Kifutottál az idõbõl! \nEredményed:                              " + gs.ActualRow + " próbálkozás, " + min + ":" + sec + "\n"
+								+"A másik játékos eredménye: "+OtherPlayerScore+" próbálkozás, "+min2+":"+sec2+"     \n";
+					else if (gs.ActualRow < OtherPlayerScore)
 						gs.Message=	"Gyõztél! \nEredményed:                              " + gs.ActualRow + " próbálkozás, " + min + ":" + sec + "\n"
 								+"A másik játékos eredménye: "+OtherPlayerScore+" próbálkozás, "+min2+":"+sec2+"     \n";
 					else
