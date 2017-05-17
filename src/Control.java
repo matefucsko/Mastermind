@@ -335,10 +335,18 @@ public class Control {
 		return win;
 	}
 	/*Kiolvassa az adott beállításokhoz tartozó highscore fájlt, majd formázva beletölti egy stringbe, amivel visszatér.*/
-	private String HighScore2HTML() throws IOException{
-		String content;
-		if(colourRepeat) content = new String(Files.readAllBytes(Paths.get("highscore"+colourNum+"r.txt")));
-		else content = new String(Files.readAllBytes(Paths.get("highscore"+colourNum+".txt")));
+	private String HighScore2HTML() throws UnsupportedEncodingException, FileNotFoundException, IOException{
+		String content="";
+		String filename;
+		if(colourRepeat) filename = "highscore"+colourNum+"r.txt";
+		else filename = "highscore"+colourNum+".txt";
+			try {
+				content = new String(Files.readAllBytes(Paths.get(filename)));
+			} catch (IOException e) {
+				makeHighScoreFiles(); //Ha sérültek, vagy nincsenek meg a highscore fájlok, újragenerálja õket
+				content = new String(Files.readAllBytes(Paths.get(filename)));
+				//e.printStackTrace();
+			}
 		String[] lines = content.split("#");
 		String[] names = new String[11];
 		String[] scores = new String[11];
@@ -379,12 +387,17 @@ public class Control {
 	 * Ha megvan a név, meghívja az insertScore függvényt, ami elhelyezi az adott játékos nevét és statisztikáit a megfelelõ helyen a highscore adatokat tartalmazó stringben.
 	 * Végül ezt a stringet visszaírja a highscore fájlba.*/
 	private void CompareToHighScores(long myTime) throws IOException {
-		//makeHighScoreFiles(); //Ha sérültek, vagy nincsenek meg a highscore fájlok, újragenerálja õket
-		String content;
+		String content="";
 		String filename;
 		if(colourRepeat) filename ="highscore"+colourNum+"r.txt";
 		else filename ="highscore"+colourNum+".txt";
-		content = new String(Files.readAllBytes(Paths.get(filename)));
+		try {
+			content = new String(Files.readAllBytes(Paths.get(filename)));
+		} catch (IOException e) {
+			makeHighScoreFiles(); //Ha sérültek, vagy nincsenek meg a highscore fájlok, újragenerálja õket
+			content = new String(Files.readAllBytes(Paths.get(filename)));
+			//e.printStackTrace();
+		}
 		String[] lines = content.split("#");
 		String[] names = new String[11];
 		String[] scores = new String[11];
